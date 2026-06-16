@@ -3,7 +3,7 @@ export interface GenerateClient {
 }
 
 export function createGenerateClient(apiKey: string): GenerateClient {
-  const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent'
+  const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent'
 
   return {
     async generateStream(prompt: string, systemPrompt?: string): Promise<ReadableStream> {

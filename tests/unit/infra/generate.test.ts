@@ -18,7 +18,7 @@ describe('createGenerateClient', () => {
     await client.generateStream('test prompt', 'system instruction')
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=test-api-key',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=test-api-key',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
