@@ -1,0 +1,2 @@
+/api/*  https://yt-scribe-worker.YOUR_SUBDOMAIN.workers.dev/:splat  200
+/*      /index.html                                                 200
