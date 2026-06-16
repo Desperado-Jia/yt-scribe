@@ -3,7 +3,6 @@ import { renderMarkdown } from '../lib/markdown'
 import { applyHighlights } from '../lib/highlight'
 
 interface ChapterInfo {
-  el: HTMLElement
   title: string
 }
 
@@ -20,6 +19,7 @@ export class YtStreamView extends BaseElement {
   private sessionId: string | null = null
   private activeChapterIdx = -1
   private activeCard: import('./chapter-card').YtChapterCard | null = null
+  private renderPending = false
 
   render(): void {
     this.html(`
@@ -88,7 +88,8 @@ export class YtStreamView extends BaseElement {
       if (!chip) return
       const idx = parseInt(chip.dataset.index || '-1')
       if (idx >= 0 && idx < this.chapters.length) {
-        this.chapters[idx].el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const h2 = this.articleBody.querySelectorAll('h2')[idx]
+        if (h2) h2.scrollIntoView({ behavior: 'smooth', block: 'start' })
         this.setActiveChip(idx)
       }
     })
@@ -114,10 +115,13 @@ export class YtStreamView extends BaseElement {
 
       // Create new card and insert after chapter's first paragraph
       const card = document.createElement('yt-chapter-card') as import('./chapter-card').YtChapterCard
-      const h2 = this.chapters[chapterIdx].el
+      const h2 = this.articleBody.querySelectorAll('h2')[chapterIdx]
+      if (!h2) return
       const nextP = h2.nextElementSibling
       const insertAfter = nextP || h2
-      insertAfter.after(card)
+      const parent = insertAfter.parentNode
+      if (!parent) return
+      parent.insertBefore(card, insertAfter.nextSibling)
 
       this.activeCard = card
       card.show(this.sessionId, chapterIdx)
@@ -135,10 +139,9 @@ export class YtStreamView extends BaseElement {
     this.addEventListener('yt-highlights', ((e: CustomEvent) => {
       const { chapterIndex, highlights } = e.detail
       if (chapterIndex >= 0 && chapterIndex < this.chapters.length) {
-        const chapterEl = this.chapters[chapterIndex].el
-        const section = chapterEl.parentElement
-        if (section) {
-          applyHighlights(section, highlights)
+        const h2 = this.articleBody.querySelectorAll('h2')[chapterIndex]
+        if (h2 && h2.parentElement) {
+          applyHighlights(h2.parentElement, highlights)
         }
       }
     }) as EventListener)
@@ -183,36 +186,53 @@ export class YtStreamView extends BaseElement {
 
     this.markdownBuffer += text
 
+    // Detect complete chapter headings from raw markdown (title required, ended by newline)
+    this.detectChaptersInRaw()
+
+    if (this.renderPending) return
+    this.renderPending = true
     requestAnimationFrame(() => {
+      this.renderPending = false
       const fragment = renderMarkdown(this.markdownBuffer)
       this.articleBody.textContent = ''
       this.articleBody.appendChild(fragment)
 
-      // Detect new chapters (H2 elements)
+      // Re-attach 5W1H buttons to current DOM elements
       const h2s = this.articleBody.querySelectorAll('h2')
-      if (h2s.length > this.chapters.length) {
-        for (let i = this.chapters.length; i < h2s.length; i++) {
-          const title = h2s[i].textContent || `Chapter ${i + 1}`
-          this.chapters.push({ el: h2s[i], title })
-
-          // Add 5W1H toggle button
+      h2s.forEach((h2, i) => {
+        if (!h2.querySelector('.w1h-toggle')) {
           const btn = document.createElement('button')
           btn.className = 'w1h-toggle'
           btn.dataset.chapter = String(i)
           btn.textContent = '[5W1H ▾]'
-          h2s[i].appendChild(btn)
-
-          // Add chip to strip
-          const chip = document.createElement('button')
-          chip.className = 'chapter-chip'
-          chip.dataset.index = String(i)
-          const shortTitle = title.length > 20 ? title.slice(0, 20) + '...' : title
-          chip.textContent = shortTitle
-          this.chapterStrip.appendChild(chip)
+          h2.appendChild(btn)
         }
-        this.setActiveChip(this.chapters.length - 1)
-      }
+      })
     })
+  }
+
+  // Detect chapters from raw markdown — only complete ## heading lines (ended by \n)
+  private detectChaptersInRaw(): void {
+    const headingRegex = /^## (.+)$/gm
+    let match: RegExpExecArray | null
+    const found: string[] = []
+    while ((match = headingRegex.exec(this.markdownBuffer)) !== null) {
+      found.push(match[1].trim())
+    }
+    if (found.length <= this.chapters.length) return
+
+    for (let i = this.chapters.length; i < found.length; i++) {
+      const title = found[i]
+      this.chapters.push({ title })
+
+      const chip = document.createElement('button')
+      chip.className = 'chapter-chip'
+      chip.dataset.index = String(i)
+      const shortTitle = title.length > 20 ? title.slice(0, 20) + '...' : title
+      chip.textContent = shortTitle
+      this.chapterStrip.appendChild(chip)
+    }
+    this.setActiveChip(this.chapters.length - 1)
   }
 
   markComplete(): void {

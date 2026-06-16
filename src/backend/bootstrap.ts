@@ -1,4 +1,4 @@
-import { createGenerateClient } from './infra/generate'
+import { createGenerateClient, GenerateClientConfig } from './infra/generate'
 import { createStore } from './infra/store'
 import { createProxyTunnel, WebshareConfig } from './infra/proxy'
 import { createVideoService } from './domain/video/video'
@@ -11,6 +11,10 @@ import { createGetChapterAnalysis } from './orchestration/get-chapter-analysis'
 export interface Env {
   KV_STORE: KVNamespace
   GEMINI_API_KEY: string
+  ANTHROPIC_API_KEY?: string
+  ANTHROPIC_MODEL?: string
+  ANTHROPIC_BASE_URL?: string
+  AI_PROVIDER?: string
   WEBSHARE_CONFIG?: string
   DEMO_VIDEO_ID: string
   SKIP_YOUTUBE_FETCH?: string
@@ -20,7 +24,16 @@ export interface Env {
 export function bootstrap(env: Env) {
   // Infra
   const store = createStore(env.KV_STORE)
-  const generate = createGenerateClient(env.GEMINI_API_KEY)
+  const generateConfig: GenerateClientConfig =
+    env.AI_PROVIDER === 'anthropic'
+      ? {
+          provider: 'anthropic',
+          apiKey: env.ANTHROPIC_API_KEY || '',
+          model: env.ANTHROPIC_MODEL,
+          baseUrl: env.ANTHROPIC_BASE_URL,
+        }
+      : { provider: 'gemini', apiKey: env.GEMINI_API_KEY }
+  const generate = createGenerateClient(generateConfig)
 
   let proxyConfig: WebshareConfig | undefined
   if (env.WEBSHARE_CONFIG) {
@@ -40,7 +53,6 @@ export function bootstrap(env: Env) {
   // Domain
   const video = createVideoService({
     proxy,
-    demoVideoId: env.DEMO_VIDEO_ID,
     skipYoutubeFetch: env.SKIP_YOUTUBE_FETCH === 'true',
     maxChars: env.MAX_CHARS ? parseInt(env.MAX_CHARS) : 150000,
   })
@@ -49,8 +61,9 @@ export function bootstrap(env: Env) {
   const analysis = createAnalysisService({ generate })
 
   // Orchestration
+  const createSessionFn = createSession({ video, article, store })
   return {
-    createSession: createSession({ video, article, store }),
+    createSession: createSessionFn,
     continueSession: createContinueSession({ article, store }),
     getChapterAnalysis: createGetChapterAnalysis({ analysis, store }),
     getSession: (id: string) => store.getSession(id),

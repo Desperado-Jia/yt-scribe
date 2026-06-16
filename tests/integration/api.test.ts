@@ -34,7 +34,8 @@ describe('Worker API', () => {
       body: JSON.stringify({ url: 'not-a-youtube-url' }),
     })
 
-    const response = await worker.default.fetch(request, env)
+    const ctx = { waitUntil: vi.fn() } as any
+    const response = await worker.default.fetch(request, env, ctx)
     expect(response.status).toBe(400)
     const body = await response.json() as any
     expect(body.error).toBe('INVALID_URL')
@@ -43,9 +44,10 @@ describe('Worker API', () => {
   it('OPTIONS returns CORS headers', async () => {
     const worker = await import('../../src/backend/index')
     const env = createTestEnv()
+    const ctx = { waitUntil: vi.fn() } as any
 
     const request = new Request('https://example.com/create', { method: 'OPTIONS' })
-    const response = await worker.default.fetch(request, env)
+    const response = await worker.default.fetch(request, env, ctx)
 
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
   })
@@ -53,9 +55,10 @@ describe('Worker API', () => {
   it('GET unknown route returns 404', async () => {
     const worker = await import('../../src/backend/index')
     const env = createTestEnv()
+    const ctx = { waitUntil: vi.fn() } as any
 
     const request = new Request('https://example.com/unknown')
-    const response = await worker.default.fetch(request, env)
+    const response = await worker.default.fetch(request, env, ctx)
 
     expect(response.status).toBe(404)
   })

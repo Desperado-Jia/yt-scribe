@@ -8,10 +8,16 @@ binding = "KV_STORE"
 id = "REPLACE_WITH_KV_ID"
 
 [vars]
+AI_PROVIDER = "gemini"
 DEMO_VIDEO_ID = "xRh2sVcNXQ8"
 MAX_CHARS = "150000"
 
 [env.dev]
 name = "yt-scribe-worker-dev"
 [env.dev.vars]
+AI_PROVIDER = "anthropic"
+ANTHROPIC_MODEL = "deepseek-v4-pro"
+ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic/v1/messages"
 SKIP_YOUTUBE_FETCH = "true"
+DEMO_VIDEO_ID = "xRh2sVcNXQ8"
+MAX_CHARS = "150000"

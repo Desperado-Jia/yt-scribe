@@ -6,3 +6,8 @@ dist/
 *.log
 .worktrees/
 versions/
+.DS_Store
+materials/
+assets/
+figmademo/
+src/backend/domain/video/hardcoded-subtitles-map.gen.ts

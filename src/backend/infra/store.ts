@@ -51,12 +51,28 @@ export interface Store {
 export function createStore(ns: KVNamespace): Store {
   return {
     async getSession(id: string): Promise<SessionData | null> {
-      const raw = await ns.get(SESSION_KEY(id), 'json')
-      return raw as SessionData | null
+      try {
+        const raw = await ns.get(SESSION_KEY(id), 'json')
+        return raw as SessionData | null
+      } catch (err) {
+        console.error(`[store] getSession failed for ${id}:`, err)
+        throw err
+      }
     },
 
     async saveSession(id: string, data: SessionData): Promise<void> {
-      await ns.put(SESSION_KEY(id), JSON.stringify(data), { expirationTtl: SESSION_TTL })
+      try {
+        const json = JSON.stringify(data)
+        console.log(`[store] saveSession ${id} size=${json.length} chapters=${data.chapters?.length}`)
+        await ns.put(SESSION_KEY(id), json, { expirationTtl: SESSION_TTL })
+        console.log(`[store] saveSession ${id} put done, now verifying...`)
+        const verify = await ns.get(SESSION_KEY(id))
+        console.log(`[store] verify ${id}: got=${typeof verify} len=${verify?.length || 0}`)
+        if (!verify) console.error(`[store] verify ${id} returned null!`)
+      } catch (err: any) {
+        console.error(`[store] saveSession ${id} FAILED: ${err?.message || err}`)
+        throw err
+      }
     },
 
     async updateSession(id: string, patch: Partial<SessionData>): Promise<void> {

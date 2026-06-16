@@ -27,7 +27,9 @@ export class YtUrlForm extends BaseElement {
       </div>
     `)
 
-    this.on('[data-action="toggle-pref"]', 'click', () => {
+    this.on('[data-action="toggle-pref"]', 'click', (e) => {
+      // Don't toggle when clicking the textarea itself
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return
       const pref = this.$('.home-pref')!
       pref.classList.toggle('open')
     })

@@ -18,9 +18,10 @@ export function generateArticle(
   const rawStream = generate.generateStream(prompt, systemPrompt)
   rawStream.then((stream) => {
     stream.pipeTo(relay.transform.writable)
-  }).catch((err) => {
+  }).catch(async (err) => {
     const writer = relay.transform.writable.getWriter()
-    writer.write(new TextEncoder().encode(`data: {"type":"error","message":"${err.message}"}\n\n`))
+    const safeMsg = err instanceof Error ? err.message.replace(/\n/g, ' ') : 'Gemini API error'
+    await writer.write(new TextEncoder().encode(`data: {"type":"error","message":"${safeMsg}"}\n\n`))
     writer.close()
   })
 

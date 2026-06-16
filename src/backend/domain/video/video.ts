@@ -11,14 +11,12 @@ export interface VideoService {
 
 export interface VideoServiceInput {
   proxy: ProxyTunnel
-  demoVideoId: string
   skipYoutubeFetch?: boolean
   maxChars?: number
 }
 
 export function createVideoService(input: VideoServiceInput): VideoService {
   const proxy = input.proxy
-  const demoVideoId = input.demoVideoId
   const skipYoutubeFetch = !!input.skipYoutubeFetch
   const maxChars = input.maxChars
 
@@ -28,7 +26,7 @@ export function createVideoService(input: VideoServiceInput): VideoService {
     },
 
     async fetchSubtitles(videoId: string): Promise<string> {
-      return fetchSubtitles(videoId, proxy, demoVideoId, skipYoutubeFetch)
+      return fetchSubtitles(videoId, proxy, skipYoutubeFetch)
     },
 
     validate(vtt: string): SubtitleReport {

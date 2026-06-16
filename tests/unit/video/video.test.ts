@@ -8,7 +8,6 @@ describe('createVideoService', () => {
   it('parses a valid YouTube URL', () => {
     const service = createVideoService({
       proxy: mockProxy,
-      demoVideoId: 'xRh2sVcNXQ8',
     })
     const videoId = service.parseVideoId('https://www.youtube.com/watch?v=xRh2sVcNXQ8')
     expect(videoId).toBe('xRh2sVcNXQ8')
@@ -17,7 +16,6 @@ describe('createVideoService', () => {
   it('returns null for invalid URL', () => {
     const service = createVideoService({
       proxy: mockProxy,
-      demoVideoId: 'xRh2sVcNXQ8',
     })
     const videoId = service.parseVideoId('not a url')
     expect(videoId).toBeNull()
@@ -26,7 +24,6 @@ describe('createVideoService', () => {
   it('validates sufficient subtitle content', () => {
     const service = createVideoService({
       proxy: mockProxy,
-      demoVideoId: 'xRh2sVcNXQ8',
     })
     const validVTT = `WEBVTT
 
@@ -48,7 +45,6 @@ The subtitle validator requires at least 200 trimmed characters to pass.`
   it('rejects insufficient subtitle content', () => {
     const service = createVideoService({
       proxy: mockProxy,
-      demoVideoId: 'xRh2sVcNXQ8',
     })
     const report = service.validate('too short')
     expect(report.ok).toBe(false)

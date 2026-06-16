@@ -13,10 +13,10 @@ export interface CreateSessionDeps {
   store: Store
 }
 
-export function createSession(deps: CreateSessionDeps): (input: CreateSessionInput) => Promise<ReadableStream> {
+export function createSession(deps: CreateSessionDeps): (input: CreateSessionInput) => Promise<{ stream: ReadableStream; done: Promise<void> }> {
   const { video, article, store } = deps
 
-  return async (input: CreateSessionInput): Promise<ReadableStream> => {
+  return async (input: CreateSessionInput): Promise<{ stream: ReadableStream; done: Promise<void> }> => {
     // 1. Parse video ID
     const videoId = video.parseVideoId(input.url)
     if (!videoId) {
@@ -55,32 +55,35 @@ export function createSession(deps: CreateSessionDeps): (input: CreateSessionInp
     // 6. Pipe the article stream through
     const reader = stream.getReader()
 
-    // Save session after stream completes (non-blocking)
-    const saveAfterStream = async () => {
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        writer.write(value)
+    // Save session after stream completes
+    const savePromise = (async () => {
+      try {
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          writer.write(value)
+        }
+        writer.close()
+
+        const fullArticle = getAccumulatedText()
+        const chapters = article.parseChapters(fullArticle)
+
+        console.log(`[create-session] stream done, article=${fullArticle.length} chars, chapters=${chapters.length}`)
+        await store.saveSession(sessionId, {
+          videoUrl: input.url,
+          requirements: input.requirements,
+          transcript: '',
+          article: fullArticle,
+          chapters,
+          createdAt: Date.now(),
+          status: 'complete',
+        })
+        console.log(`[create-session] session ${sessionId} saved successfully`)
+      } catch (err: any) {
+        console.error(`[create-session] saveAfterStream FAILED: ${err?.message || err}`)
       }
-      writer.close()
+    })()
 
-      const fullArticle = getAccumulatedText()
-      const chapters = article.parseChapters(fullArticle)
-
-      await store.saveSession(sessionId, {
-        videoUrl: input.url,
-        requirements: input.requirements,
-        transcript: report.text,
-        article: fullArticle,
-        chapters,
-        createdAt: Date.now(),
-        status: 'complete',
-      })
-    }
-
-    // Run save after stream in background
-    saveAfterStream()
-
-    return readable
+    return { stream: readable, done: savePromise }
   }
 }

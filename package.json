@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "predev": "node scripts/generate-subtitle-map.mjs",
+    "dev:worker": "node scripts/generate-subtitle-map.mjs && wrangler dev"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260615.1",

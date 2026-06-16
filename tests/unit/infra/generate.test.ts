@@ -3,7 +3,7 @@ import { createGenerateClient } from '../../../src/backend/infra/generate'
 
 describe('createGenerateClient', () => {
   it('returns an object conforming to GenerateClient interface', () => {
-    const client = createGenerateClient('test-key')
+    const client = createGenerateClient({ provider: 'gemini', apiKey: 'test-key' })
     expect(client).toHaveProperty('generateStream')
     expect(typeof client.generateStream).toBe('function')
   })
@@ -14,7 +14,7 @@ describe('createGenerateClient', () => {
     )
     globalThis.fetch = mockFetch
 
-    const client = createGenerateClient('test-api-key')
+    const client = createGenerateClient({ provider: 'gemini', apiKey: 'test-api-key' })
     await client.generateStream('test prompt', 'system instruction')
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -36,7 +36,7 @@ describe('createGenerateClient', () => {
     )
     globalThis.fetch = mockFetch
 
-    const client = createGenerateClient('key')
+    const client = createGenerateClient({ provider: 'gemini', apiKey: 'key' })
     await client.generateStream('prompt only')
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body)
@@ -48,7 +48,7 @@ describe('createGenerateClient', () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(mockStream, { status: 200 }))
     globalThis.fetch = mockFetch
 
-    const client = createGenerateClient('key')
+    const client = createGenerateClient({ provider: 'gemini', apiKey: 'key' })
     const stream = await client.generateStream('prompt')
     expect(stream).toBeInstanceOf(ReadableStream)
   })

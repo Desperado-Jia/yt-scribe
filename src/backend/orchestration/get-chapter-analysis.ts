@@ -54,7 +54,6 @@ export function createGetChapterAnalysis(deps: GetChapterAnalysisDeps): (input: 
       if (done) break
       if (value) {
         const text = decoder.decode(value, { stream: true })
-        // Extract from Gemini SSE format
         const lines = text.split('\n')
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -67,11 +66,24 @@ export function createGetChapterAnalysis(deps: GetChapterAnalysisDeps): (input: 
         }
       }
     }
+    // Flush decoder buffer
+    fullResponse += decoder.decode()
 
-    // Parse the JSON response
+    // Extract JSON object from response (handle text before/after)
     const trimmed = fullResponse.trim()
-    // Remove markdown code fences if present
-    const jsonStr = trimmed.replace(/^```json\s*/i, '').replace(/\s*```$/i, '')
+    let jsonStr = trimmed
+      .replace(/^```json\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+
+    // If still not parseable, try to extract the outermost { } block
+    if (!jsonStr.startsWith('{')) {
+      const firstBrace = jsonStr.indexOf('{')
+      const lastBrace = jsonStr.lastIndexOf('}')
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1)
+      }
+    }
     const result = JSON.parse(jsonStr) as ChapterAnalysisData
 
     // Cache result
