@@ -1,9 +1,9 @@
-import { BaseElement } from './base'
+import { BaseElement } from './components/base'
 import './components/url-form'
 import './components/stream-view'
 import './components/chapter-card'
 import { consumeSSE, StreamEvent } from './lib/stream'
-import { createSession } from './lib/api'
+import { createSession, continueSession } from './lib/api'
 
 class YtApp extends BaseElement {
   private homePage!: HTMLElement
@@ -102,7 +102,6 @@ class YtApp extends BaseElement {
     this.streamView.hideContinueButton()
 
     try {
-      const { continueSession } = await import('./lib/api')
       const response = await continueSession({ sessionId: this.sessionId })
 
       if (!response.ok) {
