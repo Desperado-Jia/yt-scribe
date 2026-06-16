@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { matchHighlights, HighlightMatch } from '../../../src/backend/domain/analysis/matcher'
+import { matchHighlights } from '../../../src/backend/domain/analysis/matcher'
 
 describe('matchHighlights', () => {
   const text = 'Elon Musk announced the AI revolution. The event took place in San Francisco last Tuesday.'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createGenerateClient, GenerateClient } from '../../../src/backend/infra/generate'
+import { createGenerateClient } from '../../../src/backend/infra/generate'
 
 describe('createGenerateClient', () => {
   it('returns an object conforming to GenerateClient interface', () => {
@@ -15,7 +15,7 @@ describe('createGenerateClient', () => {
     globalThis.fetch = mockFetch
 
     const client = createGenerateClient('test-api-key')
-    const stream = await client.generateStream('test prompt', 'system instruction')
+    await client.generateStream('test prompt', 'system instruction')
 
     expect(mockFetch).toHaveBeenCalledWith(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=test-api-key',

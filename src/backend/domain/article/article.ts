@@ -3,7 +3,7 @@ import { parseChapters, ChapterMeta } from './parser'
 import { generateArticle } from './generator'
 import { createRelay } from './relay'
 
-export { ChapterMeta }
+export type { ChapterMeta }
 
 export interface ArticleService {
   generateStream(params: {

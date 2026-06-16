@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseChapters, ChapterMeta } from '../../../src/backend/domain/article/parser'
+import { parseChapters } from '../../../src/backend/domain/article/parser'
 
 describe('parseChapters', () => {
   it('splits markdown by ## headings', () => {

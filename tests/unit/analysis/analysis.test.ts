@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createAnalysisService, AnalysisService } from '../../../src/backend/domain/analysis/analysis'
+import { createAnalysisService } from '../../../src/backend/domain/analysis/analysis'
 import { GenerateClient } from '../../../src/backend/infra/generate'
 
 describe('createAnalysisService', () => {

@@ -42,7 +42,7 @@ export class YtChapterCard extends BaseElement {
       const response = await getChapterAnalysis({ sessionId, chapterIndex })
       if (!response.ok) throw new Error('Analysis failed')
 
-      const data = await response.json()
+      const data = await response.json() as { summary: Record<string, string>; highlights: HighlightMatch[] }
 
       // Render analysis panel
       const panel = this.$('.yt-chapter__analysis')!

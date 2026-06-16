@@ -15,7 +15,7 @@ export class BaseElement extends HTMLElement {
     this.innerHTML = template
   }
 
-  protected $<T extends HTMLElement>(selector: string): T | null {
+  public $<T extends HTMLElement>(selector: string): T | null {
     return this.querySelector(selector) as T | null
   }
 

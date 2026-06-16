@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createSession } from '../../src/backend/orchestration/create-session'
-import { createContinueSession } from '../../src/backend/orchestration/continue-session'
 import { createGetChapterAnalysis } from '../../src/backend/orchestration/get-chapter-analysis'
-import { Store, ChapterAnalysisData } from '../../src/backend/infra/store'
+import { ChapterAnalysisData } from '../../src/backend/infra/store'
 
 // Use mock store and services for integration test
 describe('Orchestration Integration', () => {

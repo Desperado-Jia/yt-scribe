@@ -11,7 +11,7 @@ import {
   AppError,
 } from './http/errors'
 
-export { Env }
+export type { Env }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

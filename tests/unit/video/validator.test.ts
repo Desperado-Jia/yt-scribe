@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateSubtitle, SubtitleReport } from '../../../src/backend/domain/video/validator'
+import { validateSubtitle } from '../../../src/backend/domain/video/validator'
 
 describe('validateSubtitle', () => {
   const validVTT = `WEBVTT

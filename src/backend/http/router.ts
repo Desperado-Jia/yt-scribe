@@ -27,7 +27,7 @@ export function createRouter(): {
         const match = route.pattern.exec(request.url)
         if (match) {
           const params = match.pathname.groups
-          return route.handler(request, ...Object.values(params))
+          return route.handler(request, ...Object.values(params) as string[])
         }
       }
       return null
