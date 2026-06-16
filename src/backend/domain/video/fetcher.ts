@@ -4,10 +4,24 @@ import { buildTimedtextUrl } from './parser'
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
-const RETRY_DELAYS = [2000, 5000] // exponential-ish backoff
+const FETCH_TIMEOUT_MS = 10_000
 
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms)),
+  ])
+}
+
+async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal })
+    return response
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function fetchSubtitles(
@@ -16,29 +30,21 @@ export async function fetchSubtitles(
   demoVideoId: string,
   skipYoutubeFetch: boolean
 ): Promise<string> {
-  // Direct fetch
   if (!skipYoutubeFetch) {
-    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
-      try {
-        if (attempt > 0) await sleep(RETRY_DELAYS[attempt - 1])
-
-        const vtt = await fetchViaDirect(videoId)
-        if (vtt && vtt.trim().length >= 200) return vtt
-      } catch {
-        // Fall through to next attempt
-      }
+    // Direct fetch — single attempt
+    try {
+      const vtt = await fetchViaDirect(videoId)
+      if (vtt && vtt.trim().length >= 200) return vtt
+    } catch {
+      // Fall through to proxy
     }
 
-    // Proxy fetch
-    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
-      try {
-        if (attempt > 0) await sleep(RETRY_DELAYS[attempt - 1])
-
-        const vtt = await fetchViaProxy(videoId, proxy)
-        if (vtt && vtt.trim().length >= 200) return vtt
-      } catch {
-        // Fall through to hardcoded
-      }
+    // Proxy fetch — single attempt with timeout
+    try {
+      const vtt = await withTimeout(fetchViaProxy(videoId, proxy), FETCH_TIMEOUT_MS)
+      if (vtt && vtt.trim().length >= 200) return vtt
+    } catch {
+      // Fall through to hardcoded
     }
   }
 
@@ -53,7 +59,7 @@ export async function fetchSubtitles(
 
 async function fetchViaDirect(videoId: string): Promise<string> {
   // Step 1: Fetch video page to find timedtext URL
-  const pageResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+  const pageResponse = await fetchWithTimeout(`https://www.youtube.com/watch?v=${videoId}`, {
     headers: {
       'User-Agent': USER_AGENT,
       'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
@@ -86,7 +92,7 @@ async function fetchViaDirect(videoId: string): Promise<string> {
 }
 
 async function fetchTimedtext(url: string): Promise<string> {
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { 'User-Agent': USER_AGENT },
   })
   if (!response.ok) throw new Error(`Timedtext fetch failed: ${response.status}`)
