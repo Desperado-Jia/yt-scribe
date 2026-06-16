@@ -4,6 +4,11 @@ YouTube 视频 → 中文深度文章 + 章节级 5W1H 分析。
 
 基于 Cloudflare Workers 的全栈 AI 应用，输入 YouTube 链接即可生成结构清晰的中文对话体文章，支持流式输出、章节分析和魔术高亮交互。
 
+> **注意事项**
+>
+> - **AI 模型**：Gemini API 在国内被墙，当前实际使用的是 Claude Code 内置的 DeepSeek V4 Pro 模型，通过 Anthropic 兼容协议调用。可通过 `AI_PROVIDER` 环境变量在 Gemini / Anthropic 之间切换。
+> - **网络限制**：由于国内防火墙及代理不稳定，YouTube 字幕抓取可能间歇性失败。本地开发建议开启 `SKIP_YOUTUBE_FETCH=true` 使用硬编码字幕兜底，或配置 [Webshare](https://webshare.io) 代理通过 TCP Socket 隧道穿透。
+
 ## 架构
 
 ```
