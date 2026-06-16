@@ -1,3 +1,7 @@
-materials/codes/
-versions/
+node_modules/
+dist/
+.dev.vars
+.mf/
+*.log
 .worktrees/
+versions/
