@@ -1,80 +1,275 @@
 import { BaseElement } from './base'
 import { renderMarkdown } from '../lib/markdown'
+import { applyHighlights } from '../lib/highlight'
+
+interface ChapterInfo {
+  el: HTMLElement
+  title: string
+}
 
 export class YtStreamView extends BaseElement {
-  private chapters: Array<{ el: HTMLElement; title: string }> = []
-  private currentChapterEl: HTMLElement | null = null
+  private chapters: ChapterInfo[] = []
   private markdownBuffer = ''
-  private articleContainer!: HTMLElement
+  private articleBody!: HTMLElement
+  private chapterStrip!: HTMLElement
+  private progressBar!: HTMLElement
+  private loadingState!: HTMLElement
+  private continueCard!: HTMLElement
+  private errorCard!: HTMLElement
+  private endDivider!: HTMLElement
+  private sessionId: string | null = null
+  private activeChapterIdx = -1
+  private activeCard: import('./chapter-card').YtChapterCard | null = null
 
   render(): void {
     this.html(`
-      <div class="yt-stream" hidden>
-        <div class="yt-stream__loading">正在生成文章...</div>
-        <div class="yt-stream__article"></div>
-        <div class="yt-stream__continue" hidden>
-          <button class="yt-continue">⚠️ 生成中断 · 点击续写</button>
+      <!-- Topbar -->
+      <div class="topbar">
+        <div class="topbar-row1">
+          <button class="topbar-back" data-action="back">← 返回</button>
+          <div class="topbar-progress" id="progress-bar" hidden>
+            <div class="topbar-progress-bar"></div>
+          </div>
+          <div class="topbar-spacer"></div>
         </div>
+        <div class="topbar-row2" id="chapter-strip"></div>
+      </div>
+
+      <!-- Loading -->
+      <div class="article-loading" id="loading-state">
+        <div class="mini-progress"><div class="mini-progress-bar"></div></div>
+        <p class="article-loading-text" id="loading-text">正在获取视频字幕...</p>
+      </div>
+
+      <!-- Error -->
+      <div class="error-card" id="error-card" hidden>
+        <div class="error-dot"></div>
+        <div class="error-title" id="error-title"></div>
+        <div class="error-desc" id="error-desc"></div>
+        <button class="error-link" id="error-action"></button>
+      </div>
+
+      <!-- Article Body -->
+      <div class="article-body" id="article-body"></div>
+
+      <!-- End Divider -->
+      <div class="end-divider" id="end-divider" hidden>
+        <span class="end-divider-dot"></span>
+        <span class="end-divider-line"></span>
+        <span class="end-divider-dot"></span>
+      </div>
+
+      <!-- Resume Card -->
+      <div class="resume-card" id="continue-card" hidden>
+        <div class="resume-title">生成中断</div>
+        <button class="resume-link" data-action="continue">点击续写</button>
       </div>
     `)
-    this.articleContainer = this.$('.yt-stream__article')!
+
+    this.articleBody = this.$('#article-body')!
+    this.chapterStrip = this.$('#chapter-strip')!
+    this.progressBar = this.$('#progress-bar')!
+    this.loadingState = this.$('#loading-state')!
+    this.continueCard = this.$('#continue-card')!
+    this.errorCard = this.$('#error-card')!
+    this.endDivider = this.$('#end-divider')!
+
+    this.on('[data-action="back"]', 'click', () => {
+      this.dispatchEvent(new CustomEvent('yt-back', { bubbles: true }))
+    })
+
+    this.on('[data-action="continue"]', 'click', () => {
+      this.dispatchEvent(new CustomEvent('yt-continue', { bubbles: true }))
+    })
+
+    // Delegate chapter chip clicks
+    this.on('.chapter-chip', 'click', (e) => {
+      const chip = (e.target as HTMLElement).closest('.chapter-chip') as HTMLElement
+      if (!chip) return
+      const idx = parseInt(chip.dataset.index || '-1')
+      if (idx >= 0 && idx < this.chapters.length) {
+        this.chapters[idx].el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        this.setActiveChip(idx)
+      }
+    })
+
+    // Delegate 5W1H toggle clicks
+    this.on('.w1h-toggle', 'click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.w1h-toggle') as HTMLElement
+      if (!btn || !this.sessionId) return
+      const chapterIdx = parseInt(btn.dataset.chapter || '-1')
+      if (chapterIdx < 0) return
+
+      // If same chapter card is already open, remove it
+      if (this.activeCard && this.activeCard.getChapterIndex() === chapterIdx) {
+        this.activeCard.remove()
+        this.activeCard = null
+        return
+      }
+
+      // Remove any existing card
+      if (this.activeCard) {
+        this.activeCard.remove()
+      }
+
+      // Create new card and insert after chapter's first paragraph
+      const card = document.createElement('yt-chapter-card') as import('./chapter-card').YtChapterCard
+      const h2 = this.chapters[chapterIdx].el
+      const nextP = h2.nextElementSibling
+      const insertAfter = nextP || h2
+      insertAfter.after(card)
+
+      this.activeCard = card
+      card.show(this.sessionId, chapterIdx)
+    })
+
+    // Listen for card close events
+    this.addEventListener('yt-card-close', () => {
+      if (this.activeCard) {
+        this.activeCard.remove()
+        this.activeCard = null
+      }
+    })
+
+    // Listen for highlight application
+    this.addEventListener('yt-highlights', ((e: CustomEvent) => {
+      const { chapterIndex, highlights } = e.detail
+      if (chapterIndex >= 0 && chapterIndex < this.chapters.length) {
+        const chapterEl = this.chapters[chapterIndex].el
+        const section = chapterEl.parentElement
+        if (section) {
+          applyHighlights(section, highlights)
+        }
+      }
+    }) as EventListener)
   }
 
-  show(): void {
-    this.$('.yt-stream')!.hidden = false
+  reset(): void {
+    this.markdownBuffer = ''
+    this.chapters = []
+    this.activeChapterIdx = -1
+    this.sessionId = null
+    this.articleBody.innerHTML = ''
+    this.chapterStrip.innerHTML = ''
+    this.loadingState.hidden = false
+    this.continueCard.hidden = true
+    this.errorCard.hidden = true
+    this.endDivider.hidden = true
+    this.progressBar.hidden = true
+    const loadingText = this.$('#loading-text')
+    if (loadingText) loadingText.textContent = '正在获取视频字幕...'
+    if (this.activeCard) {
+      this.activeCard.remove()
+      this.activeCard = null
+    }
+  }
+
+  setSessionId(id: string): void {
+    this.sessionId = id
+  }
+
+  showLoading(text: string): void {
+    this.loadingState.hidden = false
+    this.articleBody.innerHTML = ''
+    const loadingText = this.$('#loading-text')
+    if (loadingText) loadingText.textContent = text
   }
 
   appendText(text: string): void {
+    if (!this.markdownBuffer) {
+      this.loadingState.hidden = true
+      this.progressBar.hidden = false
+    }
+
     this.markdownBuffer += text
 
-    // RAF-throttled render
     requestAnimationFrame(() => {
       const fragment = renderMarkdown(this.markdownBuffer)
-      this.articleContainer.textContent = ''
-      this.articleContainer.appendChild(fragment)
+      this.articleBody.textContent = ''
+      this.articleBody.appendChild(fragment)
 
-      // Detect chapters
-      const h2s = this.articleContainer.querySelectorAll('h2')
+      // Detect new chapters (H2 elements)
+      const h2s = this.articleBody.querySelectorAll('h2')
       if (h2s.length > this.chapters.length) {
         for (let i = this.chapters.length; i < h2s.length; i++) {
-          this.chapters.push({ el: h2s[i], title: h2s[i].textContent || '' })
+          const title = h2s[i].textContent || `Chapter ${i + 1}`
+          this.chapters.push({ el: h2s[i], title })
+
+          // Add 5W1H toggle button
+          const btn = document.createElement('button')
+          btn.className = 'w1h-toggle'
+          btn.dataset.chapter = String(i)
+          btn.textContent = '[5W1H ▾]'
+          h2s[i].appendChild(btn)
+
+          // Add chip to strip
+          const chip = document.createElement('button')
+          chip.className = 'chapter-chip'
+          chip.dataset.index = String(i)
+          const shortTitle = title.length > 20 ? title.slice(0, 20) + '...' : title
+          chip.textContent = shortTitle
+          this.chapterStrip.appendChild(chip)
         }
+        this.setActiveChip(this.chapters.length - 1)
       }
     })
   }
 
   markComplete(): void {
-    const loading = this.$('.yt-stream__loading')
-    if (loading) loading.hidden = true
+    this.progressBar.hidden = true
+    this.endDivider.hidden = false
+    this.loadingState.hidden = true
   }
 
   showContinueButton(): void {
-    this.$('.yt-stream__continue')!.hidden = false
+    this.continueCard.hidden = false
   }
 
   hideContinueButton(): void {
-    this.$('.yt-stream__continue')!.hidden = true
+    this.continueCard.hidden = true
   }
 
-  showError(message: string): void {
-    this.articleContainer.innerHTML = `<div class="yt-error">${message}</div>`
-    const loading = this.$('.yt-stream__loading')
-    if (loading) loading.hidden = true
+  showError(message: string, onAction: () => void): void {
+    this.loadingState.hidden = true
+    this.progressBar.hidden = true
+    this.articleBody.innerHTML = ''
+    this.errorCard.hidden = false
+
+    const title = this.$('#error-title')!
+    const desc = this.$('#error-desc')!
+    const action = this.$('#error-action')!
+
+    title.textContent = '出错了'
+    desc.textContent = message
+    action.textContent = '重新开始'
+    action.onclick = onAction
   }
 
   showNoSubtitle(): void {
-    const loading = this.$('.yt-stream__loading')
-    if (loading) loading.hidden = true
-    this.articleContainer.innerHTML = `
-      <div class="yt-no-subtitle">
-        <div class="yt-no-subtitle__icon">📺</div>
-        <div class="yt-no-subtitle__title">该视频没有可用字幕</div>
-        <div class="yt-no-subtitle__text">
-          可能是因为语言不支持、创作者未上传字幕等原因。
-          请尝试另一个 YouTube 视频，或使用演示视频体验完整功能。
-        </div>
-      </div>
-    `
+    this.loadingState.hidden = true
+    this.progressBar.hidden = true
+    this.articleBody.innerHTML = ''
+    this.errorCard.hidden = false
+
+    const title = this.$('#error-title')!
+    const desc = this.$('#error-desc')!
+    const action = this.$('#error-action')!
+
+    title.textContent = '该视频暂无字幕'
+    desc.textContent = '我们尝试获取了，但该视频没有可用的字幕源。'
+    action.textContent = '试试其他链接'
+    action.onclick = () => {
+      this.dispatchEvent(new CustomEvent('yt-back', { bubbles: true }))
+    }
+  }
+
+  private setActiveChip(idx: number): void {
+    if (this.activeChapterIdx === idx) return
+    this.activeChapterIdx = idx
+    const chips = this.chapterStrip.querySelectorAll('.chapter-chip')
+    chips.forEach((c, i) => {
+      c.classList.toggle('current', i === idx)
+    })
   }
 }
 

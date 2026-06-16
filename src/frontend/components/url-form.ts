@@ -3,51 +3,73 @@ import { BaseElement } from './base'
 export class YtUrlForm extends BaseElement {
   render(): void {
     this.html(`
-      <form class="yt-form">
+      <div class="home-col">
+        <div class="home-logo">YT Scribe</div>
+        <div class="home-sub">YouTube 视频转深度文章 · AI 驱动</div>
+        <div class="home-spacer"></div>
         <input
-          type="url"
-          class="yt-form__input"
-          placeholder="输入 YouTube 视频链接..."
-          required
+          class="home-input"
+          type="text"
+          placeholder="粘贴 YouTube 链接..."
           name="url"
         />
-        <textarea
-          class="yt-form__textarea"
-          placeholder="生成要求（可选）：例如"用技术博客风格，面向初学者""
-          name="requirements"
-        ></textarea>
-        <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;">
-          <button type="submit" class="yt-form__submit">
-            生成文章
-          </button>
-          <span class="yt-form__hint" style="font-size:0.85rem;color:var(--yt-text-secondary);">
-            生成时间约 30-60 秒
-          </span>
+        <div class="home-pref" data-action="toggle-pref">
+          偏好（可选） ▸
+          <textarea
+            class="home-pref-textarea"
+            placeholder="用自然语言描述你想要的风格、角度、深度"
+            name="requirements"
+          ></textarea>
+          <div class="home-pref-hint">用自然语言描述你想要的风格、角度、深度</div>
         </div>
-      </form>
+        <button class="home-btn" data-action="submit">生成文章</button>
+        <div class="home-examples">示例：Andrej Karpathy · Lex Fridman · Paul Graham</div>
+      </div>
     `)
 
-    this.on('.yt-form', 'submit', (e) => {
-      e.preventDefault()
-      const urlInput = this.$<HTMLInputElement>('.yt-form__input')!
-      const reqInput = this.$<HTMLTextAreaElement>('.yt-form__textarea')!
-      const btn = this.$<HTMLButtonElement>('.yt-form__submit')!
-
-      if (!urlInput.value.trim()) return
-
-      btn.disabled = true
-      btn.textContent = '生成中...'
-
-      this.dispatchEvent(
-        new CustomEvent('yt-submit', {
-          detail: {
-            url: urlInput.value.trim(),
-            requirements: reqInput.value.trim() || undefined,
-          },
-          bubbles: true,
-        })
-      )
+    this.on('[data-action="toggle-pref"]', 'click', () => {
+      const pref = this.$('.home-pref')!
+      pref.classList.toggle('open')
     })
+
+    this.on('[data-action="submit"]', 'click', () => {
+      this.submit()
+    })
+
+    this.on('.home-input', 'keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') {
+        this.submit()
+      }
+    })
+  }
+
+  private submit(): void {
+    const urlInput = this.$<HTMLInputElement>('.home-input')!
+    const reqInput = this.$<HTMLTextAreaElement>('.home-pref-textarea')!
+    const btn = this.$<HTMLButtonElement>('.home-btn')!
+
+    if (!urlInput.value.trim()) return
+
+    btn.disabled = true
+    btn.textContent = '生成中...'
+
+    this.dispatchEvent(
+      new CustomEvent('yt-submit', {
+        detail: {
+          url: urlInput.value.trim(),
+          requirements: reqInput.value.trim() || undefined,
+        },
+        bubbles: true,
+      })
+    )
+  }
+
+  enable(): void {
+    const btn = this.$<HTMLButtonElement>('.home-btn')!
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = '生成文章'
+    }
   }
 }
 
