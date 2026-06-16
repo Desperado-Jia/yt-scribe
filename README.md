@@ -144,7 +144,3 @@ src/
     ├── services/          # API 调用 + SSE 客户端
     └── utils/             # Markdown 渲染 + XSS 防护
 ```
-
-## License
-
-MIT
