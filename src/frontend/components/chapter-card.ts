@@ -53,7 +53,15 @@ export class YtChapterCard extends BaseElement {
 
     try {
       const response = await getChapterAnalysis({ sessionId, chapterIndex })
-      if (!response.ok) throw new Error('Analysis failed')
+      if (!response.ok) {
+        const body = await response.text()
+        let errMsg = `${response.status} ${response.statusText}`
+        try {
+          const parsed = JSON.parse(body)
+          errMsg = parsed.message || parsed.error || errMsg
+        } catch {}
+        throw new Error(errMsg)
+      }
 
       const data = await response.json() as {
         summary: Record<string, string>
@@ -72,11 +80,13 @@ export class YtChapterCard extends BaseElement {
           bubbles: true,
         })
       )
-    } catch {
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : '获取失败'
+      console.error('[5W1H] chapter analysis failed:', errMsg)
       DIMENSIONS.forEach((dim) => {
         const cell = this.$(`.cell-${dim}`)!
         const text = cell.querySelector('.w1h-text')!
-        text.textContent = '获取失败'
+        text.textContent = errMsg
       })
     } finally {
       this.loading = false

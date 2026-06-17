@@ -1,4 +1,6 @@
-const API_BASE = '/api'
+const API_BASE = window.location.hostname === 'localhost'
+  ? '/api'
+  : 'https://yt-scribe-worker.cecilio-jia.workers.dev'
 
 export interface CreateSessionParams {
   url: string

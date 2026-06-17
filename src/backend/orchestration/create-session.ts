@@ -39,23 +39,35 @@ export function createSession(deps: CreateSessionDeps): (input: CreateSessionInp
 
     const sessionId = crypto.randomUUID()
 
-    // 4. Generate article stream
+    // 4. Save session skeleton immediately so it exists for 5W1H lookups
+    await store.saveSession(sessionId, {
+      videoUrl: input.url,
+      requirements: input.requirements,
+      transcript: '',
+      article: '',
+      chapters: [],
+      createdAt: Date.now(),
+      status: 'generating',
+    })
+    console.log(`[create-session] skeleton saved ${sessionId}`)
+
+    // 5. Generate article stream
     const { stream, getAccumulatedText } = article.generateStream({
       transcript: report.text,
       requirements: input.requirements,
     })
 
-    // 5. Transform to add meta frame at start
+    // 6. Transform to add meta frame at start
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
     const encoder = new TextEncoder()
 
     writer.write(encoder.encode(`data: {"type":"meta","sessionId":"${sessionId}"}\n\n`))
 
-    // 6. Pipe the article stream through
+    // 7. Pipe the article stream through
     const reader = stream.getReader()
 
-    // Save session after stream completes
+    // Update session after stream completes
     const savePromise = (async () => {
       try {
         while (true) {
@@ -69,18 +81,17 @@ export function createSession(deps: CreateSessionDeps): (input: CreateSessionInp
         const chapters = article.parseChapters(fullArticle)
 
         console.log(`[create-session] stream done, article=${fullArticle.length} chars, chapters=${chapters.length}`)
-        await store.saveSession(sessionId, {
-          videoUrl: input.url,
-          requirements: input.requirements,
-          transcript: '',
+        await store.updateSession(sessionId, {
           article: fullArticle,
           chapters,
-          createdAt: Date.now(),
           status: 'complete',
         })
-        console.log(`[create-session] session ${sessionId} saved successfully`)
+        console.log(`[create-session] session ${sessionId} updated`)
       } catch (err: any) {
-        console.error(`[create-session] saveAfterStream FAILED: ${err?.message || err}`)
+        console.error(`[create-session] updateAfterStream FAILED: ${err?.message || err}`)
+        try {
+          await store.updateSession(sessionId, { status: 'failed' })
+        } catch {}
       }
     })()
 
